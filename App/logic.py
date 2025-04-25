@@ -1,31 +1,64 @@
-import time
+import csv
+import sys
+from datetime import datetime
+from collections import defaultdict
+
+# Configuración inicial para manejar archivos grandes
+csv.field_size_limit(2147483647)
+sys.setrecursionlimit(10000)
 
 def new_logic():
     """
-    Crea el catalogo para almacenar las estructuras de datos
+    Inicializa las estructuras de datos para almacenar la información de crímenes.
+    Returns:
+        dict: Diccionario con estructuras vacías para organizar los datos
     """
-    #TODO: Llama a las funciónes de creación de las estructuras de datos
-    pass
-
-
-# Funciones para la carga de datos
+    return {
+        'crimes_by_id': {},                      # Mapa por ID único del crimen
+        'crimes_by_date': defaultdict(list),     # Crimenes agrupados por fecha
+        'crimes_by_area': defaultdict(list),     # Crimenes agrupados por área policial
+        'coordinates': [],                       # Lista de tuplas (latitud, longitud)
+        'total_crimes': 0                        # Contador total de crímenes
+    }
 
 def load_data(catalog, filename):
     """
-    Carga los datos del reto
+    Carga los datos del archivo CSV en las estructuras del catálogo.
+    Args:
+        catalog (dict): Catálogo inicializado con new_logic()
+        filename (str): Ruta al archivo CSV con los datos
     """
-    # TODO: Realizar la carga de datos
-    pass
+    with open(filename, mode='r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            # Procesamiento directo de los datos
+            crime_id = row['DR_NO']
+            date_str = row['DATE OCC']
+            crime_date = datetime.strptime(date_str, '%m/%d/%Y %I:%M:%S %p').date()
+            area = row['AREA']
+            lat = float(row['LAT']) if row['LAT'] else 0.0
+            lon = float(row['LON']) if row['LON'] else 0.0
+            
+            # Almacenamiento en estructuras
+            catalog['crimes_by_id'][crime_id] = row
+            catalog['crimes_by_date'][crime_date].append(row)
+            catalog['crimes_by_area'][area].append(row)
+            
+            if lat != 0.0 and lon != 0.0:
+                catalog['coordinates'].append((lat, lon))
+                
+            catalog['total_crimes'] += 1
 
-# Funciones de consulta sobre el catálogo
-
-def get_data(catalog, id):
+def get_data(catalog, crime_id):
     """
-    Retorna un dato por su ID.
+    Recupera un crimen específico por su ID.
+    Args:
+        catalog (dict): Catálogo con los datos cargados
+        crime_id (str): ID del crimen a buscar
+    Returns:
+        dict or None: Datos del crimen si existe, None en caso contrario
     """
-    #TODO: Consulta en las Llamar la función del modelo para obtener un dato
-    pass
-
+    return catalog['crimes_by_id'].get(crime_id)
 
 def req_1(catalog):
     """
