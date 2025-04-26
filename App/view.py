@@ -1,5 +1,5 @@
 import sys
-import logic 
+from App import logic 
 import os
 
 def new_logic():
@@ -23,31 +23,33 @@ def print_menu():
     print("0- Salir")
 
 def load_data(control):
-    """
-    Carga los datos
-    """
-    #TODO: Realizar la carga de datos"
+    """Interfaz para carga de datos"""
     print("\n=== CARGA DE DATOS ===")
     filename = input("Ingrese el nombre del archivo CSV: ").strip()
-    if len(filename) > 4:
-        extension = filename[-4:].lower()
-        if extension != '.csv':
-            filename += '.csv'
-    else:
+    
+    # Añadir extensión si no está presente
+    if not filename.endswith('.csv'):
         filename += '.csv'
-
-    if not os.path.exists(filename):
-        print(f"\nError: El archivo '{filename}' no existe")
-        print("Revise la ruta e intente nuevamente")
+    
+    # Buscar en múltiples ubicaciones
+    possible_paths = [
+        filename,
+        os.path.join('Data', filename),
+        os.path.join('../Data', filename)
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            filename = path
+            break
+    else:
+        print("\nError: Archivo no encontrado en:")
+        for path in possible_paths:
+            print(f"- {os.path.abspath(path)}")
         return None
     
-    print(f"\nCargando datos desde {filename}...")
-    control = logic.load_data(control, filename)
-    if control['total_crimes'] > 0:
-        print(f"¡Datos cargados! | Registros: {control['total_crimes']}")
-    else:
-        print("Advertencia: El archivo está vacío o no contiene datos válidos")
-    return control
+    print(f"\nCargando {filename}...")
+    return logic.load_data(control, filename)
 
 
 def print_data(control, id):

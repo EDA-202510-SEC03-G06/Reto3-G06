@@ -1,54 +1,127 @@
 
 import csv
 import sys
+import time
+import os
 from datetime import datetime
-from collections import defaultdict
 
 # Configuración inicial para manejar archivos grandes
 csv.field_size_limit(2147483647)
 sys.setrecursionlimit(10000)
 
 def new_logic():
-    """
-    Inicializa las estructuras de datos para almacenar la información de crímenes.
-    Returns:
-        dict: Diccionario con estructuras vacías para organizar los datos
-    """
+    """Crea estructuras de datos vacías"""
     return {
-        'crimes_by_id': {},                      # Mapa por ID único del crimen
-        'crimes_by_date': defaultdict(list),     # Crimenes agrupados por fecha
-        'crimes_by_area': defaultdict(list),     # Crimenes agrupados por área policial
-        'coordinates': [],                       # Lista de tuplas (latitud, longitud)
-        'total_crimes': 0                        # Contador total de crímenes
+        'crimes_by_id': {},
+        'crimes_by_date': {},
+        'crimes_by_area': {},
+        'coordinates': [],
+        'total_crimes': 0
     }
 
 def load_data(catalog, filename):
-    """
-    Carga los datos del archivo CSV en las estructuras del catálogo.
-    Args:
-        catalog (dict): Catálogo inicializado con new_logic()
-        filename (str): Ruta al archivo CSV con los datos
-    """
-    with open(filename, mode='r', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            # Procesamiento directo de los datos
-            crime_id = row['DR_NO']
-            date_str = row['DATE OCC']
-            crime_date = datetime.strptime(date_str, '%m/%d/%Y %I:%M:%S %p').date()
-            area = row['AREA']
-            lat = float(row['LAT']) if row['LAT'] else 0.0
-            lon = float(row['LON']) if row['LON'] else 0.0
+    """Carga datos desde archivo CSV con manejo de errores"""
+    # Validación básica de entrada
+    if not isinstance(filename, str) or not filename.strip():
+        print("Error: Nombre de archivo inválido")
+        return None
+    
+    filename = filename.strip()
+    if not filename.lower().endswith('.csv'):
+        filename += '.csv'
+    
+    # Buscar archivo en múltiples ubicaciones
+    search_paths = [
+        filename,
+        os.path.join('Data', filename),
+        os.path.join('../Data', filename)
+    ]
+    
+    found_path = None
+    for path in search_paths:
+        if os.path.exists(path):
+            found_path = path
+            break
+    
+    if not found_path:
+        print("Error: Archivo no encontrado en las siguientes ubicaciones:")
+        for path in search_paths:
+            print(f"- {os.path.abspath(path)}")
+        
+        # Mostrar archivos CSV disponibles
+        print("\nArchivos CSV disponibles:")
+        for root, _, files in os.walk('.'):
+            for file in files:
+                if file.lower().endswith('.csv'):
+                    print(f"- {os.path.join(root, file)}")
+        return None
+    
+    print(f"\nCargando datos desde: {found_path}")
+    
+    processed = 0
+    skipped = 0
+    
+    try:
+        with open(found_path, mode='r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
             
-            # Almacenamiento en estructuras
-            catalog['crimes_by_id'][crime_id] = row
-            catalog['crimes_by_date'][crime_date].append(row)
-            catalog['crimes_by_area'][area].append(row)
-            
-            if lat != 0.0 and lon != 0.0:
-                catalog['coordinates'].append((lat, lon))
+            for row in reader:
+                try:
+                    # Validación de campos obligatorios
+                    required_fields = ['DR_NO', 'DATE OCC', 'AREA', 'LAT', 'LON']
+                    if not all(field in row for field in required_fields):
+                        skipped += 1
+                        continue
+                    
+                    # Parseo de fecha
+                    date_str = row['DATE OCC'].strip()
+                    crime_date = datetime.strptime(date_str, '%m/%d/%Y %I:%M:%S %p').date()
+                    
+                    # Parseo de coordenadas
+                    lat_str = row['LAT'].strip()
+                    lon_str = row['LON'].strip()
+                    lat = float(lat_str) if lat_str else 0.0
+                    lon = float(lon_str) if lon_str else 0.0
+                    
+                    # Almacenamiento
+                    crime_id = row['DR_NO']
+                    catalog['crimes_by_id'][crime_id] = row
+                    
+                    if crime_date not in catalog['crimes_by_date']:
+                        catalog['crimes_by_date'][crime_date] = []
+                    catalog['crimes_by_date'][crime_date].append(row)
+                    
+                    area = row['AREA']
+                    if area not in catalog['crimes_by_area']:
+                        catalog['crimes_by_area'][area] = []
+                    catalog['crimes_by_area'][area].append(row)
+                    
+                    if lat != 0.0 and lon != 0.0:
+                        catalog['coordinates'].append((lat, lon))
+                    
+                    catalog['total_crimes'] += 1
+                    processed += 1
                 
-            catalog['total_crimes'] += 1
+                except ValueError:
+                    skipped += 1
+                    continue
+        
+        print(f"\nResumen de carga:")
+        print(f"- Registros procesados: {processed}")
+        print(f"- Registros omitidos: {skipped}")
+        print(f"- Total en catálogo: {catalog['total_crimes']}")
+        
+        return catalog
+    
+    except PermissionError:
+        print("Error: No tiene permisos para leer el archivo")
+        return None
+    except csv.Error:
+        print("Error: El archivo CSV está mal formado")
+        return None
+    except Exception as e:
+        print(f"Error inesperado: {str(e)}")
+        return None
 
 def get_data(catalog, crime_id):
     """
