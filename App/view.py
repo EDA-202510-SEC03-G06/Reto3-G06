@@ -1,12 +1,13 @@
 import sys
-
+import logic 
+import os
 
 def new_logic():
     """
         Se crea una instancia del controlador
     """
     #TODO: Llamar la función de la lógica donde se crean las estructuras de datos
-    pass
+    return logic.new_logic()
 
 def print_menu():
     print("Bienvenido")
@@ -25,8 +26,28 @@ def load_data(control):
     """
     Carga los datos
     """
-    #TODO: Realizar la carga de datos
-    pass
+    #TODO: Realizar la carga de datos"
+    print("\n=== CARGA DE DATOS ===")
+    filename = input("Ingrese el nombre del archivo CSV: ").strip()
+    if len(filename) > 4:
+        extension = filename[-4:].lower()
+        if extension != '.csv':
+            filename += '.csv'
+    else:
+        filename += '.csv'
+
+    if not os.path.exists(filename):
+        print(f"\nError: El archivo '{filename}' no existe")
+        print("Revise la ruta e intente nuevamente")
+        return None
+    
+    print(f"\nCargando datos desde {filename}...")
+    control = logic.load_data(control, filename)
+    if control['total_crimes'] > 0:
+        print(f"¡Datos cargados! | Registros: {control['total_crimes']}")
+    else:
+        print("Advertencia: El archivo está vacío o no contiene datos válidos")
+    return control
 
 
 def print_data(control, id):
@@ -34,6 +55,15 @@ def print_data(control, id):
         Función que imprime un dato dado su ID
     """
     #TODO: Realizar la función para imprimir un elemento
+    crime = logic.get_data(control, id)
+    if crime:
+        print("\n=== DETALLE ===")
+        print(f"ID: {crime['DR_NO']}")
+        print(f"Fecha: {crime['DATE OCC']}")
+        print(f"Área: {crime.get('AREA NAME', 'Desconocida')}")
+        print(f"Ubicación: {crime.get('LOCATION', 'Sin dirección')}")
+    else:
+        print(f"\nCrimen con ID {id} no encontrado")
     pass
 
 def print_req_1(control):
