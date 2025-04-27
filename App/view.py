@@ -26,30 +26,22 @@ def load_data(control):
     """Interfaz para carga de datos"""
     print("\n=== CARGA DE DATOS ===")
     filename = input("Ingrese el nombre del archivo CSV: ").strip()
-    
-    # Añadir extensión si no está presente
+
+    #agrego extensión si no está presente
     if not filename.endswith('.csv'):
         filename += '.csv'
     
-    # Buscar en múltiples ubicaciones
-    possible_paths = [
-        filename,
-        os.path.join('Data', filename),
-        os.path.join('../Data', filename)
-    ]
+    filename_s = [filename,os.path.join('Data', filename)]
     
-    for path in possible_paths:
+    for path in filename_s:
         if os.path.exists(path):
             filename = path
-            break
-    else:
-        print("\nError: Archivo no encontrado en:")
-        for path in possible_paths:
-            print(f"- {os.path.abspath(path)}")
+            print(f"\nCargando {filename}...")
+            return logic.load_data(control, filename)
+    else: #caso en el que no se encuentre el archivo
+        print("\nError: Archivo no encontrado")
+        print("=================================")
         return None
-    
-    print(f"\nCargando {filename}...")
-    return logic.load_data(control, filename)
 
 
 def print_data(control, id):
@@ -73,7 +65,33 @@ def print_req_1(control):
         Función que imprime la solución del Requerimiento 1 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 1
-    pass
+    print("\n=== Requerimiento 1 ===")
+    print("Listado de crimenes por rango de fechas")
+    print("formato de fecha: MM/DD/YYYY")
+    
+    dato_inicial = input("Ingrese la fecha inicial: ").strip()
+    dato_final = input("Ingrese la fecha final: ").strip()
+    
+    result = logic.req_1(control, dato_inicial, dato_final)
+    if not result:
+        print("No se encontraron crimenes")
+        return
+    
+    print(f"\nTotal de crimenes: {len(result)}")
+    
+    print(f"\nTotal de crímenes encontrados: {len(result)}")
+    print("\nPrimeros 5 crímenes ordenados (más recientes primero):")
+    print("-" * 80)
+    
+    for numero, crimen in enumerate(result[:5], 1):
+        print(f"Crimen #{numero}:")
+        print(f"ID: {crimen['id']}")
+        print(f"Fecha: {crimen['date']}")
+        print(f"Hora: {crimen['time']}")
+        print(f"Área: {crimen['area']}")
+        print(f"Código: {crimen['codigo']}")
+        print(f"Dirección: {crimen['direccion']}")
+        print("-" * 80)
 
 
 def print_req_2(control):
@@ -81,9 +99,64 @@ def print_req_2(control):
         Función que imprime la solución del Requerimiento 2 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 2
-    pass
-
-
+    print("\n=== Requerimiento 2 ===")
+    print("Listado de crimenes por rango de fechas")
+    print("formato de fecha: MM/DD/YYYY")
+    
+    dato_inicial = input("Ingrese la fecha inicial: ").strip()
+    dato_final = input("Ingrese la fecha final: ").strip()
+    
+    total_c, results = logic.req_2(control, dato_inicial, dato_final)
+    if total_c == 0:
+        print("No se encontraron crimenes graves resueltos en el rango solicitado")
+        return
+    
+    print(f"\nTotal de crímenes graves resueltos encontrados: {total_c}")
+    
+    if total_c <= 10:
+        print("\nPrimeros 10 crímenes ordenados (más recientes primero):")
+        print("-" * 80)
+        for num, result in enumerate(results, 1):
+            print(f"Crimen #{num}:")
+            print(f"  ID: {result["id"]}")
+            print(f"  Fecha: {result["date"]}")
+            print(f"  Hora: {result["time"]}")
+            print(f"  Área: {result["area"]}")
+            print(f"  Subárea: {result["subarea"]}")
+            print(f"  Gravedad: {result["gravedad"]}")
+            print(f"  Código: {result["codigo"]}")
+            print(f"  Estado: {result["estado"]}")
+            print("-" * 80)
+    else:    
+        print("\nPrimeros 5 crímenes ordenados (más recientes primero):")
+        print("-" * 80)
+        for num, result in enumerate(results[:5], 1):
+            print(f"Crimen #{num}:")
+            print(f"  ID: {result["id"]}")
+            print(f"  Fecha: {result["date"]}")
+            print(f"  Hora: {result["time"]}")
+            print(f"  Área: {result["area"]}")
+            print(f"  Subárea: {result["subarea"]}")
+            print(f"  Gravedad: {result["gravedad"]}")
+            print(f"  Código: {result["codigo"]}")
+            print(f"  Estado: {result["estado"]}")
+            print("-" * 80)
+        
+        print("\n...\n")
+        print("\nUltimos 5 crímenes ordenados (más Antiguos):")
+        print("-" * 80)
+        for num, result in enumerate(results[-5:], total_c-5):
+            print(f"Crimen #{num}:")
+            print(f"  ID: {result["id"]}")
+            print(f"  Fecha: {result["date"]}")
+            print(f"  Hora: {result["time"]}")
+            print(f"  Área: {result["area"]}")
+            print(f"  Subárea: {result["subarea"]}")
+            print(f"  Gravedad: {result["gravedad"]}")
+            print(f"  Código: {result["codigo"]}")
+            print(f"  Estado: {result["estado"]}")
+            print("-" * 80)
+    
 def print_req_3(control):
     """
         Función que imprime la solución del Requerimiento 3 en consola

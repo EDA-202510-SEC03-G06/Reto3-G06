@@ -12,116 +12,134 @@ sys.setrecursionlimit(10000)
 def new_logic():
     """Crea estructuras de datos vacías"""
     return {
-        'crimes_by_id': {},
-        'crimes_by_date': {},
-        'crimes_by_area': {},
-        'coordinates': [],
-        'total_crimes': 0
+        "crimes_by_id": {},
+        "crimes_by_date": {},
+        "crimes_by_area": {},
+        "coordinates": [],
+        "total_crimes": 0
     }
 
 def load_data(catalog, filename):
     """Carga datos desde archivo CSV con manejo de errores"""
-    # Validación básica de entrada
+    procesado = 0
+    saltado = 0
+    primeros_reportes = []
+    ultimos_reportes = []
+    # hago una validación básica de entrada
     if not isinstance(filename, str) or not filename.strip():
         print("Error: Nombre de archivo inválido")
         return None
     
     filename = filename.strip()
-    if not filename.lower().endswith('.csv'):
-        filename += '.csv'
+    if not filename.lower().endswith(".csv"):
+        filename += ".csv"
     
-    # Buscar archivo en múltiples ubicaciones
-    search_paths = [
+    # Buscar archivo
+    archivos_busq = [
         filename,
-        os.path.join('Data', filename),
-        os.path.join('../Data', filename)
+        os.path.join("Data", filename)
     ]
     
-    found_path = None
-    for path in search_paths:
+    archivos_enc = None
+    for path in archivos_busq:
         if os.path.exists(path):
-            found_path = path
-            break
+            archivos_enc = path
     
-    if not found_path:
-        print("Error: Archivo no encontrado en las siguientes ubicaciones:")
-        for path in search_paths:
-            print(f"- {os.path.abspath(path)}")
-        
-        # Mostrar archivos CSV disponibles
-        print("\nArchivos CSV disponibles:")
-        for root, _, files in os.walk('.'):
-            for file in files:
-                if file.lower().endswith('.csv'):
-                    print(f"- {os.path.join(root, file)}")
+    if not archivos_enc: #mido el caso en el que no se encuentre el archivo
         return None
     
-    print(f"\nCargando datos desde: {found_path}")
     
-    processed = 0
-    skipped = 0
-    
-    try:
-        with open(found_path, mode='r', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
+    with open(archivos_enc, mode="r", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
             
-            for row in reader:
-                try:
-                    # Validación de campos obligatorios
-                    required_fields = ['DR_NO', 'DATE OCC', 'AREA', 'LAT', 'LON']
-                    if not all(field in row for field in required_fields):
-                        skipped += 1
+        for valor in reader:
+            try:
+                    # valido los campos obligatorios
+                required_fields = ["DR_NO", "DATE OCC", "AREA", "LAT", "LON", "Date Rptd", "AREA NAME", "Crm Cd"]
+                if not all(field in valor for field in required_fields): #la funcion all() devuelve True si todos los elementos de la lista son True, fuente: https://micro.recursospython.com/recursos/la-funcion-all.html
+                        saltado += 1
                         continue
                     
-                    # Parseo de fecha
-                    date_str = row['DATE OCC'].strip()
-                    crime_date = datetime.strptime(date_str, '%m/%d/%Y %I:%M:%S %p').date()
-                    
-                    # Parseo de coordenadas
-                    lat_str = row['LAT'].strip()
-                    lon_str = row['LON'].strip()
-                    lat = float(lat_str) if lat_str else 0.0
-                    lon = float(lon_str) if lon_str else 0.0
-                    
-                    # Almacenamiento
-                    crime_id = row['DR_NO']
-                    catalog['crimes_by_id'][crime_id] = row
-                    
-                    if crime_date not in catalog['crimes_by_date']:
-                        catalog['crimes_by_date'][crime_date] = []
-                    catalog['crimes_by_date'][crime_date].append(row)
-                    
-                    area = row['AREA']
-                    if area not in catalog['crimes_by_area']:
-                        catalog['crimes_by_area'][area] = []
-                    catalog['crimes_by_area'][area].append(row)
-                    
-                    if lat != 0.0 and lon != 0.0:
-                        catalog['coordinates'].append((lat, lon))
-                    
-                    catalog['total_crimes'] += 1
-                    processed += 1
+                    # fechas
+                date_str = valor["DATE OCC"].strip()
+                date_rptd = valor["Date Rptd"].strip()
                 
-                except ValueError:
-                    skipped += 1
-                    continue
+                crime_date = datetime.strptime(date_str, "%m/%d/%Y %I:%M:%S %p").date()
+                report_date = datetime.strptime(date_rptd, "%m/%d/%Y %I:%M:%S %p").date()
+                    # coordenadas
+                lat_str = valor["LAT"].strip()
+                lon_str = valor["LON"].strip()
+                lat = float(lat_str) if lat_str else 0
+                lon = float(lon_str) if lon_str else 0
+                    
+                crime_id = valor["DR_NO"]
+                catalog["crimes_by_id"][crime_id] = valor
+                    
+                if crime_date not in catalog["crimes_by_date"]:
+                        catalog["crimes_by_date"][crime_date] = []
+                catalog["crimes_by_date"][crime_date].append(valor)
+                    
+                area = valor["AREA"]
+                if area not in catalog["crimes_by_area"]:
+                    catalog["crimes_by_area"][area] = []
+                catalog["crimes_by_area"][area].append(valor)
+                    
+                if lat != 0 and lon != 0:
+                    catalog["coordinates"].append((lat, lon))
+                    
+                reporte= {
+                    "DR_NO": valor.get("DR_NO", "Unknown"),
+                    "Date Rptd": valor.get("Date Rptd", "Unknown"),
+                    "DATE OCC": valor.get("DATE OCC", "Unknown"),
+                    "AREA NAME": valor.get("AREA NAME", "Unknown"),
+                    "Crm Cd": valor.get("Crm Cd", "Unknown")
+                }
+                
+                if len(primeros_reportes) < 5:
+                    primeros_reportes.append(reporte)
+                
+                ultimos_reportes.append(reporte)
+                if len(primeros_reportes) >= 5:
+                    ultimos_reportes.pop(0)
+                        
+                    
+                catalog["total_crimes"] += 1
+                procesado += 1
+                
+            except ValueError:
+                saltado += 1
+                continue
         
         print(f"\nResumen de carga:")
-        print(f"- Registros procesados: {processed}")
-        print(f"- Registros omitidos: {skipped}")
-        print(f"- Total en catálogo: {catalog['total_crimes']}")
+        print(f"- Registros procesados: {procesado}")
+        print(f"- Registros omitidos: {saltado}")
+        print(f"- Total en catálogo: {catalog["total_crimes"]}")
+        
+        if procesado > 0:
+            print(f"\nPrimeros 5 reportes:")
+            for primero in primeros_reportes:
+                print(f"DR_NO: {primero['DR_NO']}")
+                print(f"Date Rptd: {primero['Date Rptd']}")
+                print(f"DATE OCC: {primero['DATE OCC']}")
+                print(f"AREA NAME: {primero['AREA NAME']}")
+                print(f"Crm Cd: {primero['Crm Cd']}")
+                print("-" * 80)
+                
+        
+            if procesado > 5:
+                print("\nÚltimos 5 reportes:")
+                ultimos_mostrar = ultimos_reportes[-5:] if len(ultimos_reportes) >= 5 else ultimos_reportes
+                for i, reporte in enumerate(ultimos_mostrar, max(1, procesado - 4)):
+                    print(f"\nReporte #{i}:")
+                    print(f"DR_NO: {reporte['DR_NO']}")
+                    print(f"Fecha Reportado: {reporte['Date Rptd']}")
+                    print(f"Fecha Ocurrencia: {reporte['DATE OCC']}")
+                    print(f"Área: {reporte['AREA NAME']}")
+                    print(f"Código Crimen: {reporte['Crm Cd']}")
+                    print("-" * 60)
+        print("\n" + "="*60)
         
         return catalog
-    
-    except PermissionError:
-        print("Error: No tiene permisos para leer el archivo")
-        return None
-    except csv.Error:
-        print("Error: El archivo CSV está mal formado")
-        return None
-    except Exception as e:
-        print(f"Error inesperado: {str(e)}")
-        return None
 
 def get_data(catalog, crime_id):
     """
@@ -132,24 +150,80 @@ def get_data(catalog, crime_id):
     Returns:
         dict or None: Datos del crimen si existe, None en caso contrario
     """
-    return catalog['crimes_by_id'].get(crime_id)
+    return catalog["crimes_by_id"].get(crime_id)
 
-def req_1(catalog):
+def req_1(catalog, dato_inicial_str, dato_final_str):
     """
     Retorna el resultado del requerimiento 1
     """
     # TODO: Modificar el requerimiento 1
-    pass
+    result = []
+    start_state = datetime.strptime(dato_inicial_str, "%m/%d/%Y").date()
+    end_date = datetime.strptime(dato_final_str, "%m/%d/%Y").date()
 
-
-def req_2(catalog):
+    # recorro todas las fechas y filtro por rango de fechas
+    for crime in catalog["crimes_by_date"]:
+        if start_state <= crime <= end_date:
+            for datos_crime in catalog["crimes_by_date"][crime]:
+                crime_date = datetime.strptime(datos_crime["DATE OCC"], "%m/%d/%Y %I:%M:%S %p")
+                
+                # creo un diccionario con la informacion de la crimen
+                crime_info = {
+                    "id": datos_crime["DR_NO"],
+                    "date": crime_date.strftime("%Y-%m-%d"),
+                    "time": crime_date.strftime("%H-%M-%S"),
+                    "area": datos_crime.get("AREA NAME", "Desconocida"),
+                    "codigo": datos_crime.get("Crm Cd", "N/A"),
+                    "direccion": datos_crime.get("LOCATION", "Sin dirección"),
+                    #agrego los datos temporales necesarios para ordenar el resultado
+                    "sort_date": crime_date,
+                    "codigo_de_area": int(datos_crime["AREA"]) if datos_crime["AREA"].isdigit() else 0
+                }
+                result.append(crime_info)
+    # ordeno el resultado
+    result.sort(key=lambda x: (-x["sort_date"].timestamp(), x["codigo_de_area"])) #con timestamp almaceno la  informacion de la fecha y codigo de area fuente https://skiller.education/timestamp/#:~:text=El%20tipo%20de%20dato%20TIMESTAMP%20es%20utilizado%20para%20almacenar%20información,en%20que%20ocurrió%20un%20evento.
+    #elimino los campos temporales que uso para ordenar el resultado
+    for crimen in result:
+        del crimen["sort_date"]
+        del crimen["codigo_de_area"]
+    return result
+def req_2(catalog, dato_inicial_str, dato_final_str):
     """
     Retorna el resultado del requerimiento 2
     """
     # TODO: Modificar el requerimiento 2
-    pass
+    result = []
+    start_state = datetime.strptime(dato_inicial_str, "%m/%d/%Y").date()
+    end_date = datetime.strptime(dato_final_str, "%m/%d/%Y").date()
+    
+    for crime in catalog["crimes_by_date"]:
+        if start_state <= crime <= end_date:
+            for datos_crime in catalog["crimes_by_date"][crime]:
+                #filtro de crimenes
+                if (datos_crime.get("Part 1-2", " ").strip() == "1" and datos_crime.get("Status"," ").upper() == "AA"):
+                    crime_date = datetime.strptime(datos_crime["DATE OCC"], "%m/%d/%Y %I:%M:%S %p")
 
-
+                    # creo un diccionario con la informacion de la crimen
+                    crime_info = {
+                        "id": datos_crime["DR_NO"],
+                        "date": crime_date.strftime("%Y-%m-%d"),
+                        "time": crime_date.strftime("%H-%M-%S"),
+                        "area": datos_crime.get("AREA NAME", "desconocida"),
+                        "subarea": datos_crime.get("Rpt Dist No", "N/A"),
+                        "gravedad": "Part 1-2",
+                        "codigo":datos_crime.get("Crm Cd", "N/A"),
+                        "estado":datos_crime.get("Status Desc", "desconocido"),
+                        #agrego los datos temporales necesarios para ordenar el resultado
+                        "sort_date": crime_date,
+                        "codigo_de_area": int(datos_crime["AREA"]) if datos_crime["AREA"].isdigit() else 0
+                    }
+                    result.append(crime_info)
+                
+    result.sort(key=lambda x: (-x["sort_date"].timestamp(), x["codigo_de_area"]))
+    for crimen in result:
+        del crimen["sort_date"]
+        del crimen["codigo_de_area"]
+    return (len(result), result)
 def req_3(catalog):
     """
     Retorna el resultado del requerimiento 3
