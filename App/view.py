@@ -41,7 +41,7 @@ def load_data(control):
     else: #caso en el que no se encuentre el archivo
         print("\nError: Archivo no encontrado")
         print("=================================")
-        return None
+        return print_menu()
 
 
 def print_data(control, id):
@@ -75,7 +75,7 @@ def print_req_1(control):
     result = logic.req_1(control, dato_inicial, dato_final)
     if not result:
         print("No se encontraron crimenes")
-        return
+        return print_menu()
     
     print(f"\nTotal de crimenes: {len(result)}")
     
@@ -109,7 +109,7 @@ def print_req_2(control):
     total_c, results = logic.req_2(control, dato_inicial, dato_final)
     if total_c == 0:
         print("No se encontraron crimenes graves resueltos en el rango solicitado")
-        return
+        return print_menu()
     
     print(f"\nTotal de crímenes graves resueltos encontrados: {total_c}")
     
@@ -159,10 +159,55 @@ def print_req_2(control):
     
 def print_req_3(control):
     """
-        Función que imprime la solución del Requerimiento 3 en consola
+    Función que imprime la solución del Requerimiento 3 en consola
     """
-    # TODO: Imprimir el resultado del requerimiento 3
-    pass
+    print("\n=== Requerimiento 3 ===")
+    print("Listado de crimenes mas recientes por area")
+    
+    # Obtener y validar entrada
+    nomb_area = input("Ingrese la área: ")
+    if not nomb_area or not isinstance(nomb_area, str):
+        print("Error: Área no válida")
+        return
+    
+    try:
+        num = int(input("Ingrese el número de crimenes: "))
+        if num <= 0:
+            print("Error: El número debe ser positivo")
+            return
+    except ValueError:
+        print("Error: Debe ingresar un número válido")
+        return
+    
+    # Obtener resultados
+    total_c, results = logic.req_3(control, num, nomb_area)
+    
+    # Mostrar resultados
+    print("\n" + "="*80)
+    print(f"RESULTADOS PARA EL ÁREA: {nomb_area.upper()}")
+    print(f"Total de crímenes en el área: {total_c}")
+    print(f"Mostrando los {min(num, total_c)} más recientes:")
+    print("="*80 + "\n")
+    
+    if total_c == 0:
+        print("No se encontraron crímenes para el área especificada")
+        return
+    
+    
+    
+    # Mostrar cada crimen
+    for numero, result in enumerate(results, 1):
+        print(f"Crimen #{numero}:")
+        print(f"  ID: {result["id"]}")
+        print(f"  Fecha: {result["dato"]}")
+        print(f"  Hora: {result["tiempo"]}")
+        print(f"  Área: {result["area"]}")
+        print(f"  Subárea: {result["subarea"]}")
+        print(f"  Gravedad: {result["gravedad"]}")
+        print(f"  Código: {result["codigo"]}")
+        print(f"  Estado: {result["estado"]}")
+        print(f"  • Dirección: {result["direccion"]}")
+        print("-" * 80)
 
 
 def print_req_4(control):

@@ -118,11 +118,11 @@ def load_data(catalog, filename):
         if procesado > 0:
             print(f"\nPrimeros 5 reportes:")
             for primero in primeros_reportes:
-                print(f"DR_NO: {primero['DR_NO']}")
-                print(f"Date Rptd: {primero['Date Rptd']}")
-                print(f"DATE OCC: {primero['DATE OCC']}")
-                print(f"AREA NAME: {primero['AREA NAME']}")
-                print(f"Crm Cd: {primero['Crm Cd']}")
+                print(f"DR_NO: {primero["DR_NO"]}")
+                print(f"Date Rptd: {primero["Date Rptd"]}")
+                print(f"DATE OCC: {primero["DATE OCC"]}")
+                print(f"AREA NAME: {primero["AREA NAME"]}")
+                print(f"Crm Cd: {primero["Crm Cd"]}")
                 print("-" * 80)
                 
         
@@ -131,11 +131,11 @@ def load_data(catalog, filename):
                 ultimos_mostrar = ultimos_reportes[-5:] if len(ultimos_reportes) >= 5 else ultimos_reportes
                 for i, reporte in enumerate(ultimos_mostrar, max(1, procesado - 4)):
                     print(f"\nReporte #{i}:")
-                    print(f"DR_NO: {reporte['DR_NO']}")
-                    print(f"Fecha Reportado: {reporte['Date Rptd']}")
-                    print(f"Fecha Ocurrencia: {reporte['DATE OCC']}")
-                    print(f"Área: {reporte['AREA NAME']}")
-                    print(f"Código Crimen: {reporte['Crm Cd']}")
+                    print(f"DR_NO: {reporte["DR_NO"]}")
+                    print(f"Fecha Reportado: {reporte["Date Rptd"]}")
+                    print(f"Fecha Ocurrencia: {reporte["DATE OCC"]}")
+                    print(f"Área: {reporte["AREA NAME"]}")
+                    print(f"Código Crimen: {reporte["Crm Cd"]}")
                     print("-" * 60)
         print("\n" + "="*60)
         
@@ -224,14 +224,97 @@ def req_2(catalog, dato_inicial_str, dato_final_str):
         del crimen["sort_date"]
         del crimen["codigo_de_area"]
     return (len(result), result)
-def req_3(catalog):
+def req_3(catalog, num, nomb_area):
     """
     Retorna el resultado del requerimiento 3
     """
-    # TODO: Modificar el requerimiento 3
-    pass
+    if not nomb_area or not isinstance(nomb_area, str):
+        return (0, [])
 
+    area_code = None
+    filtro_area = str(nomb_area).strip().lower() if nomb_area else ""
+    area_en = False
+    
+    for code, crimes in catalog["crimes_by_area"].items():
+        if not area_en and crimes and isinstance(crimes[0], dict):
+            area_name = crimes[0].get("AREA NAME")
+            if area_name and str(area_name).strip().lower() == filtro_area:
+                area_code = code
+                area_en = True
+    
+    if area_code is None:
+        return (0, [])
 
+    processed_crimes = []
+    for crime in catalog['crimes_by_area'][area_code]:
+        if not isinstance(crime, dict):
+            continue
+            
+        required_fields = {
+            "DATE OCC": lambda x: bool(x),
+            "TIME OCC": lambda x: str(x).isdigit(),
+            "DR_NO": lambda x: bool(x),
+            "AREA NAME": lambda x: bool(x),
+            "Rpt Dist No": lambda x: True,
+            "Part 1-2": lambda x: x in ['1', '2'],
+            "Crm Cd": lambda x: bool(x),
+            "Status Desc": lambda x: bool(x),
+            "LOCATION": lambda x: bool(x)
+        }
+
+        valid = True
+        for field, validator in required_fields.items():
+            if field not in crime or not validator(crime[field]):
+                valid = False
+                continue # saltar al siguiente elemento, no es break jsjasjajs fuente: https://ellibrodepython.com/continue-python
+        
+        if not valid:
+            continue
+
+        date_str = crime["DATE OCC"].split()[0] if "DATE OCC" in crime else ""
+        date_parts = date_str.split('/') if date_str else []
+        
+        if len(date_parts) == 3:
+            try:
+                month, day, year = map(int, date_parts)
+                time_occ = str(crime["TIME OCC"]).zfill(4)
+                
+                processed_crimes.append({
+                    'crime': crime,
+                    'sort_key': (year, month, day, int(time_occ))
+                })
+            except (ValueError, TypeError):
+                continue
+    
+    total_crimes = len(processed_crimes)
+    if total_crimes == 0:
+        return (0, [])
+    
+
+    crime_org = sorted(processed_crimes, key=lambda x: x['sort_key'], reverse=True)
+
+    results = []
+    for crime_data in crime_org[:num]:
+        crime = crime_data['crime']
+
+        time_str = str(crime.get("TIME OCC", "0000")).zfill(4)
+        formatted_time = f"{time_str[:2]}:{time_str[2:]}"
+        
+        results.append({
+            'id': crime.get("DR_NO", "N/A"),
+            'dato': crime.get("DATE OCC", "N/A").split()[0],
+            'tiempo': formatted_time,
+            'area': crime.get("AREA NAME", "N/A"),
+            'subarea': str(crime.get("Rpt Dist No", "N/A")),
+            'gravedad': 'Part ' + str(crime.get("Part 1-2", "?")),
+            'codigo': crime.get("Crm Cd", "N/A"),
+            'estado': crime.get("Status Desc", "N/A"),
+            'direccion': str(crime.get("LOCATION", "N/A")).strip()
+        })
+    
+    return (total_crimes, results)
+        
+        
 def req_4(catalog):
     """
     Retorna el resultado del requerimiento 4
