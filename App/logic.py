@@ -55,16 +55,16 @@ def load_data(catalog, filename):
         for valor in reader:
             try:
                     # valido los campos obligatorios
-                required_fields = ["DR_NO", "DATE OCC", "AREA", "LAT", "LON", "Date Rptd", "AREA NAME", "Crm Cd"]
-                if not all(field in valor for field in required_fields): #la funcion all() devuelve True si todos los elementos de la lista son True, fuente: https://micro.recursospython.com/recursos/la-funcion-all.html
+                requerimientos_v = ["DR_NO", "DATE OCC", "AREA", "LAT", "LON", "Date Rptd", "AREA NAME", "Crm Cd"]
+                if not all(field in valor for field in requerimientos_v): #la funcion all() devuelve True si todos los elementos de la lista son True, fuente: https://micro.recursospython.com/recursos/la-funcion-all.html
                         saltado += 1
                         continue
                     
                     # fechas
-                date_str = valor["DATE OCC"].strip()
+                dato_str = valor["DATE OCC"].strip()
                 date_rptd = valor["Date Rptd"].strip()
                 
-                crime_date = datetime.strptime(date_str, "%m/%d/%Y %I:%M:%S %p").date()
+                crime_date = datetime.strptime(dato_str, "%m/%d/%Y %I:%M:%S %p").date()
                 report_date = datetime.strptime(date_rptd, "%m/%d/%Y %I:%M:%S %p").date()
                     # coordenadas
                 lat_str = valor["LAT"].strip()
@@ -224,6 +224,7 @@ def req_2(catalog, dato_inicial_str, dato_final_str):
         del crimen["sort_date"]
         del crimen["codigo_de_area"]
     return (len(result), result)
+
 def req_3(catalog, num, nomb_area):
     """
     Retorna el resultado del requerimiento 3
@@ -245,12 +246,12 @@ def req_3(catalog, num, nomb_area):
     if area_code is None:
         return (0, [])
 
-    processed_crimes = []
+    crimenes_procesados = []
     for crime in catalog['crimes_by_area'][area_code]:
         if not isinstance(crime, dict):
             continue
-            
-        required_fields = {
+        #reviso que esten todos los campos requeridos sean validos  
+        requerimientos_v = {
             "DATE OCC": lambda x: bool(x),
             "TIME OCC": lambda x: str(x).isdigit(),
             "DR_NO": lambda x: bool(x),
@@ -263,47 +264,45 @@ def req_3(catalog, num, nomb_area):
         }
 
         valid = True
-        for field, validator in required_fields.items():
-            if field not in crime or not validator(crime[field]):
+        for valor, validador in requerimientos_v.items():
+            if valor not in crime or not validador(crime[valor]):
                 valid = False
                 continue # saltar al siguiente elemento, no es break jsjasjajs fuente: https://ellibrodepython.com/continue-python
         
         if not valid:
             continue
 
-        date_str = crime["DATE OCC"].split()[0] if "DATE OCC" in crime else ""
-        date_parts = date_str.split('/') if date_str else []
+        dato_str = crime["DATE OCC"].split()[0] if "DATE OCC" in crime else ""
+        dato_parts = dato_str.split('/') if dato_str else []
         
-        if len(date_parts) == 3:
+        if len(dato_parts) == 3:
             try:
-                month, day, year = map(int, date_parts)
+                mes, dia, anio = map(int, dato_parts)
                 time_occ = str(crime["TIME OCC"]).zfill(4)
                 
-                processed_crimes.append({
+                crimenes_procesados.append({
                     'crime': crime,
-                    'sort_key': (year, month, day, int(time_occ))
+                    'sort_key': (anio, mes, dia, int(time_occ))
                 })
             except (ValueError, TypeError):
                 continue
     
-    total_crimes = len(processed_crimes)
+    total_crimes = len(crimenes_procesados)
     if total_crimes == 0:
         return (0, [])
-    
 
-    crime_org = sorted(processed_crimes, key=lambda x: x['sort_key'], reverse=True)
-
+    crime_org = sorted(crimenes_procesados, key=lambda x: x['sort_key'], reverse=True)
     results = []
     for crime_data in crime_org[:num]:
         crime = crime_data['crime']
 
         time_str = str(crime.get("TIME OCC", "0000")).zfill(4)
-        formatted_time = f"{time_str[:2]}:{time_str[2:]}"
+        tiempo_form = f"{time_str[:2]}:{time_str[2:]}"
         
         results.append({
             'id': crime.get("DR_NO", "N/A"),
             'dato': crime.get("DATE OCC", "N/A").split()[0],
-            'tiempo': formatted_time,
+            'tiempo': tiempo_form,
             'area': crime.get("AREA NAME", "N/A"),
             'subarea': str(crime.get("Rpt Dist No", "N/A")),
             'gravedad': 'Part ' + str(crime.get("Part 1-2", "?")),
