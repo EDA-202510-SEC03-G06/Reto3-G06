@@ -356,87 +356,128 @@ def req_7(catalog):
     # TODO: Modificar el requerimiento 7
     pass
 
+import math
+from datetime import datetime
+
 def haversine(lat1, lon1, lat2, lon2):
-    r = 6371 # Radio de la tierra en km
-    dlat = math.radians(lat2-lat1)
-    dlon = math.radians(lon2-lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    """Calcula la distancia entre dos puntos geográficos usando la fórmula de Haversine"""
+    r = 6371  # Radio de la Tierra en km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * (math.sin(dlon / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return r * c
-def req_8(catalog, num, area_name, crime_type):
-    
-    #la verdad este si estubo dificil, tuve que organizarlo bastante con comentarios
+
+def req_8(catalog, num, area_name, codigo_crime):
     """
     Retorna el resultado del requerimiento 8
     """
-    # TODO: Modificar el requerimiento 8
+    # estuvo muy horrible, tuve que organizarlo demasiado para que funcione
     start_time = get_time()
-    num_area = None
     
-    #numero de area
-    crimenes_inte = []
-    for area, crimes in catalog["crimes_by_area"].items():
-        if crimes and crimes[0]["AREA NAME"].strip().lower() == area_name.strip().lower():
-            num_area = area
+    # Identificar el área de interés
+    area_int = None
+    area_enc = False 
+    
+    areas = catalog["crimes_by_area"].items()
+    for area, crimes in areas:
+        if not area_enc and crimes and crimes[0]["AREA NAME"].strip().lower() == area_name.strip().lower():
+            area_int = area
+            area_enc = True  
+    
+    if not area_int:
+        return None
+    
+    # Filtrar crímenes del área de interés
+    crimes_int = []
+    for crime in catalog["crimes_by_area"][area_int]:
+        try:
+            if int(crime["Crm Cd"]) == int(codigo_crime):
+                crimes_int.append(crime)
+        except (ValueError, KeyError):
             continue
-            
-    if not num_area:
+    
+    if not crimes_int:
         return None
-    #crimenes de interes
-    for crime in catalog["crimes_by_area"][num_area]:
-        if int(crime["Crm Cd"]) == crime_type:
-            crimenes_inte.append(crime)
-            
-    if not crimenes_inte:
-        return None
-    #crimenes del mismo tipo en otras areas
-    otros_crimenes = []
-    for area, crimes in catalog["crimes_by_area"].items():
-        if area != num_area:
+    
+    # Filtrar crímenes de otras áreas
+    otros_crimes = []
+    for area_num, crimes in catalog["crimes_by_area"].items():
+        if area_num != area_int:
             for crime in crimes:
-                if crime["Crm Cd"] == crime_type:
-                    otros_crimenes.append(crime)
-                
-    if not otros_crimenes:
+                try:
+                    if int(crime["Crm Cd"]) == int(codigo_crime):
+                        otros_crimes.append(crime)
+                except (ValueError, KeyError):
+                    continue
+    
+    if not otros_crimes:
         return None
     
-    #distancia
+    # Comparación todos contra todos
     resultados = []
-    for crimen in crimenes_inte:
-        lat1 = float(crimen["LAT"])
-        long1 = float(crimen["LON"])
-        fecha_ref = datetime.strptime(crimen["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p").date()
-        for otro in otros_crimenes:
-            lat2 = float(otro["LAT"])
-            long2 = float(otro["LON"])
-            fecha_otro = datetime.strptime(otro["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p").date()
-            distancia = haversine(lat1, long1, lat2, long2)
+    for target_crime in crimes_int:
+        try:
+            lat1 = float(target_crime["LAT"])
+            lon1 = float(target_crime["LON"])
+            date1 = datetime.strptime(target_crime["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p")
             
-            #miro cual es el primer y segundo crimen
-            if fecha_ref <= fecha_otro:
-                fecha_primero, fecha_segundo = fecha_ref, fecha_otro
-            else:
-                fecha_primero, fecha_segundo = fecha_otro, fecha_ref
-            
-            resultados.append({
-                "tipo": crimen["Crm Cd Desc"],
-                "area otra": otro["AREA NAME"],
-                "fecha 1": fecha_primero,
-                "fecha 2": fecha_segundo,
-                "distancia (km)": distancia
-            })
-            
-    #ordeno
-    resultados.sort(key=lambda x: x["distancia (km)"])
+            for other_crime in otros_crimes:
+                try:
+                    lat2 = float(other_crime["LAT"])
+                    lon2 = float(other_crime["LON"])
+                    date2 = datetime.strptime(other_crime["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p")
+                    
+                    distance = haversine(lat1, lon1, lat2, lon2)
+                    
+                    # Ordenar por fecha (más antiguo primero)
+                    if date1 <= date2:
+                        resultado = {
+                            "crime1": target_crime,
+                            "crime2": other_crime,
+                            "distance": distance,
+                            "older_date": date1,
+                            "newer_date": date2
+                        }
+                    else:
+                        resultado = {
+                            "crime1": other_crime,
+                            "crime2": target_crime,
+                            "distance": distance,
+                            "older_date": date2,
+                            "newer_date": date1
+                        }
+                    
+                    resultados.append(resultado)
+                except (ValueError, KeyError):
+                    continue
+        except (ValueError, KeyError):
+            continue
     
-    #respuesta
-    cercanos = resultados[:num]
-    lejanos = resultados[-num:] if len(resultados) > num else resultados
+    # Ordenar por distancia
+    resultados.sort(key=lambda x: x["distance"])
+    
+    # Preparar resultados
+    closest_resultados = resultados[:num] if len(resultados) >= num else resultados
+    farthest_resultados = resultados[-num:] if len(resultados) >= num else []
+    
+    # Formatear resultados para 
+    def format_resultado(resultado):
+        return {
+            "tipo_crimen": resultado["crime1"]["Crm Cd Desc"],
+            "area_otra": resultado["crime2"]["AREA NAME"],
+            "fecha_1": resultado["older_date"].strftime("%m/%d/%Y"),
+            "fecha_2": resultado["newer_date"].strftime("%m/%d/%Y"),
+            "distancia_km": resultado["distance"]
+        }
+    
+    closest_results = [format_resultado(p) for p in closest_resultados]
+    farthest_results = [format_resultado(p) for p in farthest_resultados]
     
     end_time = get_time()
-    elapsed = delta_time(start_time, end_time)
+    elapsed_time = delta_time(start_time, end_time)
     
-    return cercanos, lejanos, elapsed
+    return closest_results, farthest_results, elapsed_time
             
     
 # Funciones para medir tiempos de ejecucion
