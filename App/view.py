@@ -110,12 +110,13 @@ def print_req_2(control):
     dato_inicial = input("Ingrese la fecha inicial: ").strip()
     dato_final = input("Ingrese la fecha final: ").strip()
     
-    total_c, results = logic.req_2(control, dato_inicial, dato_final)
+    total_c, results, elapsed = logic.req_2(control, dato_inicial, dato_final)
     if total_c == 0:
         print("No se encontraron crimenes graves resueltos en el rango solicitado")
         return print_menu()
     
     print(f"\nTotal de crímenes graves resueltos encontrados: {total_c}")
+    print(f"Tiempo de ejecución: {elapsed:.3f} ms")
     
     if total_c <= 10:
         print("\nPrimeros 10 crímenes ordenados (más recientes primero):")
@@ -184,7 +185,7 @@ def print_req_3(control):
         return
     
     # Obtener resultados
-    total_c, results = logic.req_3(control, num, nomb_area)
+    total_c, results, elapsed = logic.req_3(control, num, nomb_area)
     
     # Mostrar resultados
     print("\n" + "="*80)
@@ -212,7 +213,8 @@ def print_req_3(control):
         print(f"  Estado: {result["estado"]}")
         print(f"  • Dirección: {result["direccion"]}")
         print("-" * 80)
-
+        
+    print(f"\nTiempo de ejecución: {elapsed:.2f} ms")
 
 def print_req_4(control):
     """

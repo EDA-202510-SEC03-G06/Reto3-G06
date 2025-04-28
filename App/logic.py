@@ -22,6 +22,7 @@ def new_logic():
 
 def load_data(catalog, filename):
     """Carga datos desde archivo CSV con manejo de errores"""
+    start_time = get_time()
     procesado = 0
     saltado = 0
     primeros_reportes = []
@@ -110,11 +111,14 @@ def load_data(catalog, filename):
             except ValueError:
                 saltado += 1
                 continue
+        end_time = get_time()
+        elapsed_time = delta_time(start_time, end_time)
         
         print(f"\nResumen de carga:")
         print(f"- Registros procesados: {procesado}")
         print(f"- Registros omitidos: {saltado}")
         print(f"- Total en catálogo: {catalog["total_crimes"]}")
+        print(f"- Tiempo de ejecución: {elapsed_time:.4f} ms")
         
         if procesado > 0:
             print(f"\nPrimeros 5 reportes:")
@@ -197,6 +201,7 @@ def req_2(catalog, dato_inicial_str, dato_final_str):
     """
     # TODO: Modificar el requerimiento 2
     result = []
+    start_time = get_time()
     start_state = datetime.strptime(dato_inicial_str, "%m/%d/%Y").date()
     end_date = datetime.strptime(dato_final_str, "%m/%d/%Y").date()
     
@@ -227,12 +232,15 @@ def req_2(catalog, dato_inicial_str, dato_final_str):
     for crimen in result:
         del crimen["sort_date"]
         del crimen["codigo_de_area"]
-    return (len(result), result)
+    
+    elapsed_time = delta_time(start_time, get_time())
+    return (len(result), result, elapsed_time)
 
 def req_3(catalog, num, nomb_area):
     """
     Retorna el resultado del requerimiento 3
     """
+    start_time = get_time()
     if not nomb_area or not isinstance(nomb_area, str):
         return (0, [])
 
@@ -314,8 +322,8 @@ def req_3(catalog, num, nomb_area):
             'estado': crime.get("Status Desc", "N/A"),
             'direccion': str(crime.get("LOCATION", "N/A")).strip()
         })
-    
-    return (total_crimes, results)
+    end_time = get_time()
+    return (total_crimes, results, delta_time(start_time, end_time))
         
         
 def req_4(catalog):
