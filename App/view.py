@@ -72,11 +72,15 @@ def print_req_1(control):
     dato_inicial = input("Ingrese la fecha inicial: ").strip()
     dato_final = input("Ingrese la fecha final: ").strip()
     
-    result = logic.req_1(control, dato_inicial, dato_final)
+    funcion = logic.req_1(control, dato_inicial, dato_final)
+    result = funcion["result"]
+    elapsed_time = funcion["time"]
+    
     if not result:
         print("No se encontraron crimenes")
         return print_menu()
     
+    print(f"\nTiempo de ejecución: {elapsed_time:.2f} ms")
     print(f"\nTotal de crimenes: {len(result)}")
     
     print(f"\nTotal de crímenes encontrados: {len(result)}")
@@ -85,12 +89,12 @@ def print_req_1(control):
     
     for numero, crimen in enumerate(result[:5], 1):
         print(f"Crimen #{numero}:")
-        print(f"ID: {crimen['id']}")
-        print(f"Fecha: {crimen['date']}")
-        print(f"Hora: {crimen['time']}")
-        print(f"Área: {crimen['area']}")
-        print(f"Código: {crimen['codigo']}")
-        print(f"Dirección: {crimen['direccion']}")
+        print(f"  ID: {crimen['id']}")
+        print(f"  Fecha: {crimen['date']}")
+        print(f"  Hora: {crimen['time']}")
+        print(f"  Área: {crimen['area']}")
+        print(f"  Código: {crimen['codigo']}")
+        print(f"  Dirección: {crimen['direccion']}")
         print("-" * 80)
 
 
@@ -241,14 +245,48 @@ def print_req_7(control):
     # TODO: Imprimir el resultado del requerimiento 7
     pass
 
-
 def print_req_8(control):
     """
         Función que imprime la solución del Requerimiento 8 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 8
-    pass
+    print("\n=== Requerimiento 8 ===")
+    num = int(input("Ingrese el número N de crímenes a consultar: ").strip())
+    area_name = input("Ingrese el nombre del área de interés: ").strip()
+    crime_type = input("Ingrese el tipo de crimen a consultar: ").strip()
 
+    resultados = logic.req_8(control, num, area_name, crime_type)
+    
+    if resultados is None:
+        print("No se encontraron crímenes")
+        return print_menu()
+    
+    cercanos, lejanos, tiempo = resultados
+    
+    if not cercanos and not lejanos:
+        print("No se encontraron crímenes")
+        return print_menu()
+    
+    print("\n== Crimenes cercanos ==")
+    for crimes in cercanos:
+        print(f"Tipo: {crimes['tipo']}")
+        print(f"Área: {crimes['area otra']}")
+        print(f"Fecha: {crimes['fecha 1']}")
+        print(f"Fecha: {crimes['fecha 2']}")
+        print(f"Distancia (km): {crimes['distancia (km)']:.2f} km")
+        print("-" * 80)
+        
+    print("\n== Crimenes lejanos ==")
+    for crimes in lejanos:
+        print(f"Tipo: {crimes['tipo']}")
+        print(f"Área: {crimes['area otra']}")
+        print(f"Fecha: {crimes['fecha 1']}")
+        print(f"Fecha: {crimes['fecha 2']}")
+        print(f"Distancia (km): {crimes['distancia (km)']:.2f} km")
+        print("-" * 80)
+        
+    print(f"\nTiempo de ejecución: {tiempo} ms")
+    print("\n" + "="*80)
 
 # Se crea la lógica asociado a la vista
 control = new_logic()

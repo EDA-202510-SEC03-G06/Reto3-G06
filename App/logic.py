@@ -4,6 +4,7 @@ import sys
 import time
 import os
 from datetime import datetime
+import math
 
 # Configuración inicial para manejar archivos grandes
 csv.field_size_limit(2147483647)
@@ -157,10 +158,11 @@ def req_1(catalog, dato_inicial_str, dato_final_str):
     Retorna el resultado del requerimiento 1
     """
     # TODO: Modificar el requerimiento 1
+    start_time = get_time()
     result = []
     start_state = datetime.strptime(dato_inicial_str, "%m/%d/%Y").date()
     end_date = datetime.strptime(dato_final_str, "%m/%d/%Y").date()
-
+    
     # recorro todas las fechas y filtro por rango de fechas
     for crime in catalog["crimes_by_date"]:
         if start_state <= crime <= end_date:
@@ -186,7 +188,9 @@ def req_1(catalog, dato_inicial_str, dato_final_str):
     for crimen in result:
         del crimen["sort_date"]
         del crimen["codigo_de_area"]
-    return result
+    
+    elapsed_time = delta_time(start_time, get_time())
+    return {"result": result, "time": elapsed_time}
 def req_2(catalog, dato_inicial_str, dato_final_str):
     """
     Retorna el resultado del requerimiento 2
@@ -344,15 +348,89 @@ def req_7(catalog):
     # TODO: Modificar el requerimiento 7
     pass
 
-
-def req_8(catalog):
+def haversine(lat1, lon1, lat2, lon2):
+    r = 6371 # Radio de la tierra en km
+    dlat = math.radians(lat2-lat1)
+    dlon = math.radians(lon2-lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    return r * c
+def req_8(catalog, num, area_name, crime_type):
+    
+    #la verdad este si estubo dificil, tuve que organizarlo bastante con comentarios
     """
     Retorna el resultado del requerimiento 8
     """
     # TODO: Modificar el requerimiento 8
-    pass
-
-
+    start_time = get_time()
+    num_area = None
+    
+    #numero de area
+    crimenes_inte = []
+    for area, crimes in catalog["crimes_by_area"].items():
+        if crimes and crimes[0]["AREA NAME"].strip().lower() == area_name.strip().lower():
+            num_area = area
+            continue
+            
+    if not num_area:
+        return None
+    #crimenes de interes
+    for crime in catalog["crimes_by_area"][num_area]:
+        if int(crime["Crm Cd"]) == crime_type:
+            crimenes_inte.append(crime)
+            
+    if not crimenes_inte:
+        return None
+    #crimenes del mismo tipo en otras areas
+    otros_crimenes = []
+    for area, crimes in catalog["crimes_by_area"].items():
+        if area != num_area:
+            for crime in crimes:
+                if crime["Crm Cd"] == crime_type:
+                    otros_crimenes.append(crime)
+                
+    if not otros_crimenes:
+        return None
+    
+    #distancia
+    resultados = []
+    for crimen in crimenes_inte:
+        lat1 = float(crimen["LAT"])
+        long1 = float(crimen["LON"])
+        fecha_ref = datetime.strptime(crimen["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p").date()
+        for otro in otros_crimenes:
+            lat2 = float(otro["LAT"])
+            long2 = float(otro["LON"])
+            fecha_otro = datetime.strptime(otro["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p").date()
+            distancia = haversine(lat1, long1, lat2, long2)
+            
+            #miro cual es el primer y segundo crimen
+            if fecha_ref <= fecha_otro:
+                fecha_primero, fecha_segundo = fecha_ref, fecha_otro
+            else:
+                fecha_primero, fecha_segundo = fecha_otro, fecha_ref
+            
+            resultados.append({
+                "tipo": crimen["Crm Cd Desc"],
+                "area otra": otro["AREA NAME"],
+                "fecha 1": fecha_primero,
+                "fecha 2": fecha_segundo,
+                "distancia (km)": distancia
+            })
+            
+    #ordeno
+    resultados.sort(key=lambda x: x["distancia (km)"])
+    
+    #respuesta
+    cercanos = resultados[:num]
+    lejanos = resultados[-num:] if len(resultados) > num else resultados
+    
+    end_time = get_time()
+    elapsed = delta_time(start_time, end_time)
+    
+    return cercanos, lejanos, elapsed
+            
+    
 # Funciones para medir tiempos de ejecucion
 
 def get_time():
