@@ -72,11 +72,15 @@ def print_req_1(control):
     dato_inicial = input("Ingrese la fecha inicial: ").strip()
     dato_final = input("Ingrese la fecha final: ").strip()
     
-    result = logic.req_1(control, dato_inicial, dato_final)
+    funcion = logic.req_1(control, dato_inicial, dato_final)
+    result = funcion["result"]
+    elapsed_time = funcion["time"]
+    
     if not result:
         print("No se encontraron crimenes")
         return print_menu()
     
+    print(f"\nTiempo de ejecución: {elapsed_time:.2f} ms")
     print(f"\nTotal de crimenes: {len(result)}")
     
     print(f"\nTotal de crímenes encontrados: {len(result)}")
@@ -85,12 +89,12 @@ def print_req_1(control):
     
     for numero, crimen in enumerate(result[:5], 1):
         print(f"Crimen #{numero}:")
-        print(f"ID: {crimen['id']}")
-        print(f"Fecha: {crimen['date']}")
-        print(f"Hora: {crimen['time']}")
-        print(f"Área: {crimen['area']}")
-        print(f"Código: {crimen['codigo']}")
-        print(f"Dirección: {crimen['direccion']}")
+        print(f"  ID: {crimen['id']}")
+        print(f"  Fecha: {crimen['date']}")
+        print(f"  Hora: {crimen['time']}")
+        print(f"  Área: {crimen['area']}")
+        print(f"  Código: {crimen['codigo']}")
+        print(f"  Dirección: {crimen['direccion']}")
         print("-" * 80)
 
 
@@ -106,12 +110,13 @@ def print_req_2(control):
     dato_inicial = input("Ingrese la fecha inicial: ").strip()
     dato_final = input("Ingrese la fecha final: ").strip()
     
-    total_c, results = logic.req_2(control, dato_inicial, dato_final)
+    total_c, results, elapsed = logic.req_2(control, dato_inicial, dato_final)
     if total_c == 0:
         print("No se encontraron crimenes graves resueltos en el rango solicitado")
         return print_menu()
     
     print(f"\nTotal de crímenes graves resueltos encontrados: {total_c}")
+    print(f"Tiempo de ejecución: {elapsed:.3f} ms")
     
     if total_c <= 10:
         print("\nPrimeros 10 crímenes ordenados (más recientes primero):")
@@ -180,7 +185,7 @@ def print_req_3(control):
         return
     
     # Obtener resultados
-    total_c, results = logic.req_3(control, num, nomb_area)
+    total_c, results, elapsed = logic.req_3(control, num, nomb_area)
     
     # Mostrar resultados
     print("\n" + "="*80)
@@ -208,7 +213,8 @@ def print_req_3(control):
         print(f"  Estado: {result["estado"]}")
         print(f"  • Dirección: {result["direccion"]}")
         print("-" * 80)
-
+        
+    print(f"\nTiempo de ejecución: {elapsed:.2f} ms")
 
 def print_req_4(control):
     """
@@ -323,14 +329,44 @@ def print_req_7(control):
     for fila in tabla:
         print(" | ".join(str(valor) for valor in fila))
 
-
 def print_req_8(control):
-    """
-        Función que imprime la solución del Requerimiento 8 en consola
-    """
-    # TODO: Imprimir el resultado del requerimiento 8
-    pass
-
+    print("\n=== Requerimiento 8 (BONO) ===")
+    try:
+        num = int(input("Número de parejas a retornar (N): ").strip())
+        area_name = input("Nombre del área de interés: ").strip()
+        codigo_crime = input("Código del tipo de crimen (crm_cd): ").strip()
+        
+        resultados = logic.req_8(control, num, area_name, codigo_crime)
+        
+        if not resultados or (not resultados[0] and not resultados[1]):
+            print("\nNo se encontraron resultados con los criterios especificados")
+            return
+        
+        cercanos, lejanos, tiempo = resultados
+        
+        print("\n=== PAREJAS MÁS CERCANAS ===")
+        for i, pareja in enumerate(cercanos, 1):
+            print(f"\nPareja #{i}:")
+            print(f"Tipo de crimen: {pareja['tipo_crimen']}")
+            print(f"Área externa: {pareja['area_otra']}")
+            print(f"Fecha más antigua: {pareja['fecha_1']}")
+            print(f"Fecha más reciente: {pareja['fecha_2']}")
+            print(f"Distancia: {pareja['distancia_km']:.2f} km")
+        
+        print("\n=== PAREJAS MÁS LEJANAS ===")
+        for i, pareja in enumerate(lejanos, 1):
+            print(f"\nPareja #{i}:")
+            print(f"Tipo de crimen: {pareja['tipo_crimen']}")
+            print(f"Área externa: {pareja['area_otra']}")
+            print(f"Fecha más antigua: {pareja['fecha_1']}")
+            print(f"Fecha más reciente: {pareja['fecha_2']}")
+            print(f"Distancia: {pareja['distancia_km']:.2f} km")
+        
+        print(f"\nTiempo de ejecución: {tiempo} ms")
+        print("\n" + "="*80)
+    
+    except ValueError:
+        print("Error: Entrada inválida")
 
 # Se crea la lógica asociado a la vista
 control = new_logic()

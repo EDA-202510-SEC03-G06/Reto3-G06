@@ -6,6 +6,8 @@ import os
 from datetime import datetime
 from DataStructures.List import array_list as lt
 from DataStructures.Tree import red_black_tree as rbt
+import math
+
 # Configuración inicial para manejar archivos grandes
 csv.field_size_limit(2147483647)
 sys.setrecursionlimit(10000)
@@ -22,6 +24,7 @@ def new_logic():
 
 def load_data(catalog, filename):
     """Carga datos desde archivo CSV con manejo de errores"""
+    start_time = get_time()
     procesado = 0
     saltado = 0
     primeros_reportes = []
@@ -110,11 +113,14 @@ def load_data(catalog, filename):
             except ValueError:
                 saltado += 1
                 continue
+        end_time = get_time()
+        elapsed_time = delta_time(start_time, end_time)
         
         print(f"\nResumen de carga:")
         print(f"- Registros procesados: {procesado}")
         print(f"- Registros omitidos: {saltado}")
         print(f"- Total en catálogo: {catalog["total_crimes"]}")
+        print(f"- Tiempo de ejecución: {elapsed_time:.4f} ms")
         
         if procesado > 0:
             print(f"\nPrimeros 5 reportes:")
@@ -158,10 +164,11 @@ def req_1(catalog, dato_inicial_str, dato_final_str):
     Retorna el resultado del requerimiento 1
     """
     # TODO: Modificar el requerimiento 1
+    start_time = get_time()
     result = []
     start_state = datetime.strptime(dato_inicial_str, "%m/%d/%Y").date()
     end_date = datetime.strptime(dato_final_str, "%m/%d/%Y").date()
-
+    
     # recorro todas las fechas y filtro por rango de fechas
     for crime in catalog["crimes_by_date"]:
         if start_state <= crime <= end_date:
@@ -187,13 +194,16 @@ def req_1(catalog, dato_inicial_str, dato_final_str):
     for crimen in result:
         del crimen["sort_date"]
         del crimen["codigo_de_area"]
-    return result
+    
+    elapsed_time = delta_time(start_time, get_time())
+    return {"result": result, "time": elapsed_time}
 def req_2(catalog, dato_inicial_str, dato_final_str):
     """
     Retorna el resultado del requerimiento 2
     """
     # TODO: Modificar el requerimiento 2
     result = []
+    start_time = get_time()
     start_state = datetime.strptime(dato_inicial_str, "%m/%d/%Y").date()
     end_date = datetime.strptime(dato_final_str, "%m/%d/%Y").date()
     
@@ -224,12 +234,15 @@ def req_2(catalog, dato_inicial_str, dato_final_str):
     for crimen in result:
         del crimen["sort_date"]
         del crimen["codigo_de_area"]
-    return (len(result), result)
+    
+    elapsed_time = delta_time(start_time, get_time())
+    return (len(result), result, elapsed_time)
 
 def req_3(catalog, num, nomb_area):
     """
     Retorna el resultado del requerimiento 3
     """
+    start_time = get_time()
     if not nomb_area or not isinstance(nomb_area, str):
         return (0, [])
 
@@ -311,8 +324,8 @@ def req_3(catalog, num, nomb_area):
             'estado': crime.get("Status Desc", "N/A"),
             'direccion': str(crime.get("LOCATION", "N/A")).strip()
         })
-    
-    return (total_crimes, results)
+    end_time = get_time()
+    return (total_crimes, results, delta_time(start_time, end_time))
         
         
 def req_4(catalog, tipo_crimen, num, edad_final):
@@ -460,15 +473,130 @@ def req_7(catalog, numero, sexo, edad_min, edad_max):
     resultado = crimenes_ordenados[:int(numero)]
     return resultado
 
+import math
+from datetime import datetime
 
-def req_8(catalog):
+def haversine(lat1, lon1, lat2, lon2):
+    """Calcula la distancia entre dos puntos geográficos usando la fórmula de Haversine"""
+    r = 6371  # Radio de la Tierra en km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * (math.sin(dlon / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return r * c
+
+def req_8(catalog, num, area_name, codigo_crime):
     """
     Retorna el resultado del requerimiento 8
     """
-    # TODO: Modificar el requerimiento 8
-    pass
-
-
+    # estuvo muy horrible, tuve que organizarlo demasiado para que funcione
+    start_time = get_time()
+    
+    # Identificar el área de interés
+    area_int = None
+    area_enc = False 
+    
+    areas = catalog["crimes_by_area"].items()
+    for area, crimes in areas:
+        if not area_enc and crimes and crimes[0]["AREA NAME"].strip().lower() == area_name.strip().lower():
+            area_int = area
+            area_enc = True  
+    
+    if not area_int:
+        return None
+    
+    # Filtrar crímenes del área de interés
+    crimes_int = []
+    for crime in catalog["crimes_by_area"][area_int]:
+        try:
+            if int(crime["Crm Cd"]) == int(codigo_crime):
+                crimes_int.append(crime)
+        except (ValueError, KeyError):
+            continue
+    
+    if not crimes_int:
+        return None
+    
+    # Filtrar crímenes de otras áreas
+    otros_crimes = []
+    for area_num, crimes in catalog["crimes_by_area"].items():
+        if area_num != area_int:
+            for crime in crimes:
+                try:
+                    if int(crime["Crm Cd"]) == int(codigo_crime):
+                        otros_crimes.append(crime)
+                except (ValueError, KeyError):
+                    continue
+    
+    if not otros_crimes:
+        return None
+    
+    # Comparación todos contra todos
+    resultados = []
+    for target_crime in crimes_int:
+        try:
+            lat1 = float(target_crime["LAT"])
+            lon1 = float(target_crime["LON"])
+            date1 = datetime.strptime(target_crime["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p")
+            
+            for other_crime in otros_crimes:
+                try:
+                    lat2 = float(other_crime["LAT"])
+                    lon2 = float(other_crime["LON"])
+                    date2 = datetime.strptime(other_crime["DATE OCC"].strip(), "%m/%d/%Y %I:%M:%S %p")
+                    
+                    distance = haversine(lat1, lon1, lat2, lon2)
+                    
+                    # Ordenar por fecha (más antiguo primero)
+                    if date1 <= date2:
+                        resultado = {
+                            "crime1": target_crime,
+                            "crime2": other_crime,
+                            "distance": distance,
+                            "older_date": date1,
+                            "newer_date": date2
+                        }
+                    else:
+                        resultado = {
+                            "crime1": other_crime,
+                            "crime2": target_crime,
+                            "distance": distance,
+                            "older_date": date2,
+                            "newer_date": date1
+                        }
+                    
+                    resultados.append(resultado)
+                except (ValueError, KeyError):
+                    continue
+        except (ValueError, KeyError):
+            continue
+    
+    # Ordenar por distancia
+    resultados.sort(key=lambda x: x["distance"])
+    
+    # Preparar resultados
+    closest_resultados = resultados[:num] if len(resultados) >= num else resultados
+    farthest_resultados = resultados[-num:] if len(resultados) >= num else []
+    
+    # Formatear resultados para 
+    def format_resultado(resultado):
+        return {
+            "tipo_crimen": resultado["crime1"]["Crm Cd Desc"],
+            "area_otra": resultado["crime2"]["AREA NAME"],
+            "fecha_1": resultado["older_date"].strftime("%m/%d/%Y"),
+            "fecha_2": resultado["newer_date"].strftime("%m/%d/%Y"),
+            "distancia_km": resultado["distance"]
+        }
+    
+    closest_results = [format_resultado(p) for p in closest_resultados]
+    farthest_results = [format_resultado(p) for p in farthest_resultados]
+    
+    end_time = get_time()
+    elapsed_time = delta_time(start_time, end_time)
+    
+    return closest_results, farthest_results, elapsed_time
+            
+    
 # Funciones para medir tiempos de ejecucion
 
 def get_time():
