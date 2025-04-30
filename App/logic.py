@@ -374,13 +374,13 @@ def req_5(catalog, N, fecha_inicial, fecha_final):
         return []
     areas_info = {}
     for crimen in catalog['data']:
-        if not all(key in crimen for key in ['DATE OCC','AREA','AREA NAME','Status']):
+        if not all(key in crimen for key in ['DATE OCC','AREA','AREA NAME','Status Desc']):
             continue
         fecha_crimen = crimen['DATE OCC']
         area_id = str(crimen['AREA'])
         area_nombre = crimen['AREA NAME']
-        estado = crimen['Status'].upper()
-        if (fecha_inicial <= fecha_crimen <= fecha_final) and estado not in ['CC','AA']:
+        estado = crimen['Status Desc'].upper()
+        if (fecha_inicial <= fecha_crimen <= fecha_final) and 'CLEARED' not in estado:
             if area_id in areas_info:
                 areas_info[area_id]['cantidad'] += 1
                 if fecha_crimen < areas_info[area_id]['primera_fecha']:
@@ -395,8 +395,7 @@ def req_5(catalog, N, fecha_inicial, fecha_final):
                     'primera_fecha': fecha_crimen,
                     'ultima_fecha': fecha_crimen
                 }
-    resultado = sorted(areas_info.values(),key=lambda x: (-x['cantidad'],x['nombre']))[:N]
-    return resultado
+    return sorted(areas_info.values(),key=lambda x: (-x['cantidad'],x['nombre']))[:N]
 
 def req_6(catalog, numero_areas, sexo, mes):
     """Retorna el resultado del requerimiento 6
@@ -429,49 +428,29 @@ def req_6(catalog, numero_areas, sexo, mes):
 def req_7(catalog, numero, sexo, edad_min, edad_max):
     """Retorna el resultado del requerimiento 7
     """
-    datos = get_data(catalog)
     crimenes_diccionario = {}
-    for i in range(1, lt.size(datos) + 1):
-        crimen = lt.get_element(datos, i)
-        if "sex" in crimen and "age" in crimen and "code" in crimen and "date" in crimen:
-            sexo_crimen = crimen["sex"]
-            edad_str = crimen["age"]
-            codigo = crimen["code"]
-            fecha_str = crimen["date"]
-            if edad_str.isdigit() and sexo_crimen == sexo:
-                edad = int(edad_str)
-                if int(edad_min) <= edad <= int(edad_max):
-                    anio = datetime.strptime(fecha_str, "%Y-%m-%d").year
-                    if codigo not in crimenes_diccionario:
-                        crimenes_diccionario[codigo] = {
-                            "total": 0,
-                            "por_edad": {},
-                            "por_anio": {}}
-                    crimenes_diccionario[codigo]["total"] += 1
-                    if edad not in crimenes_diccionario[codigo]["por_edad"]:
-                        crimenes_diccionario[codigo]["por_edad"][edad] = 1
-                    else:
-                        crimenes_diccionario[codigo]["por_edad"][edad] += 1
-                    if anio not in crimenes_diccionario[codigo]["por_anio"]:
-                        crimenes_diccionario[codigo]["por_anio"][anio] = 1
-                    else:
-                        crimenes_diccionario[codigo]["por_anio"][anio] += 1
-
-    lista_crimenes = lt.new_list()
-    for codigo in crimenes_diccionario:
-        info = {
-            "codigo": codigo,
-            "total": crimenes_diccionario[codigo]["total"],
-            "por_edad": crimenes_diccionario[codigo]["por_edad"],
-            "por_anio": crimenes_diccionario[codigo]["por_anio"]
-        }
-        lt.add_last(lista_crimenes, info)
-    lista_python = []
-    for i in range(1, lt.size(lista_crimenes) + 1):
-        lista_python.append(lt.get_element(lista_crimenes, i))
-    crimenes_ordenados = sorted(lista_python, key=lambda c: c["total"], reverse=True)
-    resultado = crimenes_ordenados[:int(numero)]
-    return resultado
+    for i in range(1, lt.size(catalog) + 1):
+        crimen = lt.get_element(catalog, i)
+        if all(key in crimen for key in ["sex", "age", "code", "date"]):
+            if (crimen["sex"].upper() == sexo.upper() and 
+                crimen["age"].isdigit() and 
+                int(edad_min) <= int(crimen["age"]) <= int(edad_max)):
+                codigo = crimen["code"]
+                anio = datetime.strptime(crimen["date"], "%Y-%m-%d").year
+                edad = int(crimen["age"])
+                if codigo not in crimenes_diccionario:
+                    crimenes_diccionario[codigo] = {
+                        "total": 0,
+                        "por_edad": {},
+                        "por_anio": {}}
+                crimenes_diccionario[codigo]["total"] += 1
+                crimenes_diccionario[codigo]["por_edad"][edad] = crimenes_diccionario[codigo]["por_edad"].get(edad, 0) + 1
+                crimenes_diccionario[codigo]["por_anio"][anio] = crimenes_diccionario[codigo]["por_anio"].get(anio, 0) + 1
+    lista_ordenada = sorted(
+        [{"codigo": k, **v} for k, v in crimenes_diccionario.items()],
+        key=lambda x: x["total"],
+        reverse=True)
+    return lista_ordenada[:int(numero)]
 
 import math
 from datetime import datetime
