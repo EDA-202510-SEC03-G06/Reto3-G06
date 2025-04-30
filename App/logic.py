@@ -4,7 +4,8 @@ import sys
 import time
 import os
 from datetime import datetime
-
+from DataStructures.List import array_list as lt
+from DataStructures.Tree import red_black_tree as rbt
 # Configuración inicial para manejar archivos grandes
 csv.field_size_limit(2147483647)
 sys.setrecursionlimit(10000)
@@ -314,35 +315,150 @@ def req_3(catalog, num, nomb_area):
     return (total_crimes, results)
         
         
-def req_4(catalog):
+def req_4(catalog, tipo_crimen, num, edad_final):
     """
     Retorna el resultado del requerimiento 4
     """
-    # TODO: Modificar el requerimiento 4
-    pass
+    filtro = []
+    for crime in catalog["crimes_by_id"].values():
+        if "Vict Age" in crime and isinstance(crime["Vict Age"], str) and crime["Vict Age"].isdigit():
+            edad = int(crime["Vict Age"])
+            if 0 <= edad <= edad_final:
+                if tipo_crimen.upper() in crime.get("Crm Cd Desc", "").upper():
+                    gravedad = 0 if crime.get("Part 1-2", "") == "1" else 1
+                    sort_key = (gravedad, -edad, crime.get("DATE OCC", ""))
+                    filtro.append({"sort_key": sort_key, "crime_data": crime})
+    if lt.size(filtro) > 0:
+        lt.quickSort(filtro, 0, len(filtro) - 1, lambda crime1, crime2: -1 if crime1["sort_key"] < crime2["sort_key"] else 1)
+        total_crimes = lt.size(filtro)
+        result_crimes = lt.new_list()
+        minimo = min(num, total_crimes)
+        for i in range(1, minimo + 1):
+            crime_total= lt.get_element(filtro, i)
+            crime = crime_total["crime_data"]
+            gravedad_text = "Part 1" if crime.get("Part 1-2", "") == "1" else "Part 2"
+            crime_info = {
+                "report_id": crime.get("DR_NO", "N/A"),
+                "date": crime.get("DATE OCC", "N/A"),
+                "time": crime.get("TIME OCC", "N/A"),
+                "area": crime.get("AREA NAME", "N/A"),
+                "subarea": crime.get("Rpt Dist No", "N/A"),
+                "severity": gravedad_text,
+                "crime_code": crime.get("Crm Cd", "N/A"),
+                "victim_age": crime.get("Vict Age", "N/A"),
+                "case_status": crime.get("Status Desc", "N/A"),
+                "address": crime.get("LOCATION", "N/A")
+            }
+            lt.add_last(result_crimes, crime_info)
+
+        return total_crimes, result_crimes
+    else:
+        return 0, lt.new_list()
+
+def req_5(catalog, N, fecha_inicial, fecha_final):
+    #Intente usar array_list con quicksort pero no funciono
+    if 'data' not in catalog or N <= 0:
+        return []
+    areas_info = {}
+    for crimen in catalog['data']:
+        if not all(key in crimen for key in ['DATE OCC','AREA','AREA NAME','Status']):
+            continue
+        fecha_crimen = crimen['DATE OCC']
+        area_id = str(crimen['AREA'])
+        area_nombre = crimen['AREA NAME']
+        estado = crimen['Status'].upper()
+        if (fecha_inicial <= fecha_crimen <= fecha_final) and estado not in ['CC','AA']:
+            if area_id in areas_info:
+                areas_info[area_id]['cantidad'] += 1
+                if fecha_crimen < areas_info[area_id]['primera_fecha']:
+                    areas_info[area_id]['primera_fecha'] = fecha_crimen
+                if fecha_crimen > areas_info[area_id]['ultima_fecha']:
+                    areas_info[area_id]['ultima_fecha'] = fecha_crimen
+            else:
+                areas_info[area_id] = {
+                    'area': area_id,
+                    'nombre': area_nombre,
+                    'cantidad': 1,
+                    'primera_fecha': fecha_crimen,
+                    'ultima_fecha': fecha_crimen
+                }
+    resultado = sorted(areas_info.values(),key=lambda x: (-x['cantidad'],x['nombre']))[:N]
+    return resultado
+
+def req_6(catalog, numero_areas, sexo, mes):
+    """Retorna el resultado del requerimiento 6
+    """
+    datos = {}
+    for crimen in catalog["crimes_by_id"].values():
+        if crimen['Vict Sex'] == sexo:
+            fecha = crimen['DATE OCC'].split('-')
+            if len(fecha) >= 2 and int(fecha[1]) == mes:
+                area = crimen['AREA']
+                año = int(fecha[0])
+                if area not in datos:
+                    datos[area] = {'nombre': crimen['AREA NAME'], 'años': {}, 'total': 0}
+                if año not in datos[area]['años']:
+                    datos[area]['años'][año] = 0
+                datos[area]['años'][año] += 1
+                datos[area]['total'] += 1
+    arbol = rbt.red_black_tree()
+    for area, info in datos.items():
+        key = (info['total'], -len(info['años']), info['nombre'])
+        value = {
+            'Área': area,
+            'Nombre del área': info['nombre'],
+            'Cantidad de crímenes': info['total'],
+            'Crímenes por año': sorted([(cnt, año) for año, cnt in info['años'].items()], key=lambda x: x[1])}
+        arbol.insert(key, value)
+    return [nodo.value for nodo in arbol.get_sorted()[:numero_areas]]
 
 
-def req_5(catalog):
+def req_7(catalog, numero, sexo, edad_min, edad_max):
+    """Retorna el resultado del requerimiento 7
     """
-    Retorna el resultado del requerimiento 5
-    """
-    # TODO: Modificar el requerimiento 5
-    pass
+    datos = get_data(catalog)
+    crimenes_diccionario = {}
+    for i in range(1, lt.size(datos) + 1):
+        crimen = lt.get_element(datos, i)
+        if "sex" in crimen and "age" in crimen and "code" in crimen and "date" in crimen:
+            sexo_crimen = crimen["sex"]
+            edad_str = crimen["age"]
+            codigo = crimen["code"]
+            fecha_str = crimen["date"]
+            if edad_str.isdigit() and sexo_crimen == sexo:
+                edad = int(edad_str)
+                if int(edad_min) <= edad <= int(edad_max):
+                    anio = datetime.strptime(fecha_str, "%Y-%m-%d").year
+                    if codigo not in crimenes_diccionario:
+                        crimenes_diccionario[codigo] = {
+                            "total": 0,
+                            "por_edad": {},
+                            "por_anio": {}}
+                    crimenes_diccionario[codigo]["total"] += 1
+                    if edad not in crimenes_diccionario[codigo]["por_edad"]:
+                        crimenes_diccionario[codigo]["por_edad"][edad] = 1
+                    else:
+                        crimenes_diccionario[codigo]["por_edad"][edad] += 1
+                    if anio not in crimenes_diccionario[codigo]["por_anio"]:
+                        crimenes_diccionario[codigo]["por_anio"][anio] = 1
+                    else:
+                        crimenes_diccionario[codigo]["por_anio"][anio] += 1
 
-def req_6(catalog):
-    """
-    Retorna el resultado del requerimiento 6
-    """
-    # TODO: Modificar el requerimiento 6
-    pass
-
-
-def req_7(catalog):
-    """
-    Retorna el resultado del requerimiento 7
-    """
-    # TODO: Modificar el requerimiento 7
-    pass
+    lista_crimenes = lt.new_list()
+    for codigo in crimenes_diccionario:
+        info = {
+            "codigo": codigo,
+            "total": crimenes_diccionario[codigo]["total"],
+            "por_edad": crimenes_diccionario[codigo]["por_edad"],
+            "por_anio": crimenes_diccionario[codigo]["por_anio"]
+        }
+        lt.add_last(lista_crimenes, info)
+    lista_python = []
+    for i in range(1, lt.size(lista_crimenes) + 1):
+        lista_python.append(lt.get_element(lista_crimenes, i))
+    crimenes_ordenados = sorted(lista_python, key=lambda c: c["total"], reverse=True)
+    resultado = crimenes_ordenados[:int(numero)]
+    return resultado
 
 
 def req_8(catalog):

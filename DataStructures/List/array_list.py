@@ -6,7 +6,7 @@ def new_list():
     return newlist
 
 def get_element(my_list, index):
-    return my_list["elements"][index]
+    return my_list[index - 1]
 
 
 def is_present(my_list, element, cmp_function):
@@ -44,7 +44,7 @@ def add_last(my_list, element):
 def size(my_list):
     #Retorna el tamaño de la lista.
     
-     return my_list['size']
+     return len(my_list)
 
 
 def first_element(my_list):
@@ -163,16 +163,13 @@ def mergeSort(my_list, l, r, sort_crit):
     return my_list
 
 def partition(my_list, low, high, sort_crit):
-    elements = my_list["elements"]
     pivot = my_list[high]
     i = low - 1
-    
     for j in range(low, high):
-        if sort_crit(elements[j], pivot) < 0:
+        if sort_crit(my_list[j], pivot) < 0:
             i += 1
-            elements[i],elements[j] = elements[j], elements[i]
-
-    elements[i + 1],elements[high] = elements[high], elements[i + 1]
+            my_list[i], my_list[j] = my_list[j], my_list[i]
+    my_list[i + 1], my_list[high] = my_list[high], my_list[i + 1]
     return i + 1
 
 def quickSort(my_list, low, high, sort_crit):
@@ -180,4 +177,6 @@ def quickSort(my_list, low, high, sort_crit):
         pi = partition(my_list, low, high, sort_crit)
         quickSort(my_list, low, pi - 1, sort_crit)
         quickSort(my_list, pi + 1, high, sort_crit)
-    return my_list
+        
+def sort(my_list, cmp_function):
+    return selection_sort(my_list, cmp_function)

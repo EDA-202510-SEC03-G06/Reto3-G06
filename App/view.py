@@ -215,31 +215,113 @@ def print_req_4(control):
         Función que imprime la solución del Requerimiento 4 en consola
     """
     # TODO: Imprimir el resultado del requerimiento 4
-    pass
+    print("=== Requerimiento 4 ===")
+    print("Listado de crímenes más antiguos por un tipo de crimen específico")
+    tipo_crimen = input("Ingrese el tipo de crimen: ")
+    edad_final = int(input("Ingrese la edad máxima: "))
+    num = int(input("Ingrese el número de crímenes a listar: "))
+    
+    total_c, resultados = logic.req_4(control, tipo_crimen, num, edad_final)
 
+    print(f"RESULTADOS PARA EL TIPO DE CRIMEN: {tipo_crimen}")
+    print(f"Total de crímenes encontrados: {total_c}")
+    print(f"Mostrando los {min(total_c, num)} más antiguos:")
+    print("="*80)
+    
+    if total_c == 0:
+        print("No se encontraron crímenes para el tipo especificado")
+    else:
+        for i, crimen in enumerate(resultados["elements"], start=1):
+            print(f"Crimen #{i}:")
+            print(f"  ID: {crimen['report_id']}")
+            print(f"  Fecha: {crimen['date']}")
+            print(f"  Hora: {crimen['time']}")
+            print(f"  Área: {crimen['area']}")
+            print(f"  Subárea: {crimen['subarea']}")
+            print(f"  Gravedad: {crimen['severity']}")
+            print(f"  Código de crimen: {crimen['crime_code']}")
+            print(f"  Edad de la víctima: {crimen['victim_age']}")
+            print(f"  Estado del caso: {crimen['case_status']}")
+            print(f"  Dirección: {crimen['address']}")
+            print("-" * 80)
 
 def print_req_5(control):
     """
-        Función que imprime la solución del Requerimiento 5 en consola
+    Función que imprime la solución del Requerimiento 5 en consola
     """
-    # TODO: Imprimir el resultado del requerimiento 5
-    pass
+    print("\n=== Requerimiento 5 ===")
+    N = input("Ingrese cantidad de áreas: ")
+    if not N.isdigit() or int(N) <= 0:
+        print("Error: N debe ser positivo")
+        return
+    fecha_inicial = input("Fecha inicial (YYYY-MM-DD): ")
+    fecha_final = input("Fecha final (YYYY-MM-DD): ")
+    if len(fecha_inicial)!=10 or len(fecha_final)!=10 or fecha_inicial[4]!='-' or fecha_final[4]!='-':
+        print("Error: Formato YYYY-MM-DD")
+        return
+    resultados = logic.req_5(control,int(N),fecha_inicial,fecha_final)
+    print(f"\nTop {N} áreas ({fecha_inicial} a {fecha_final})")
+    print("="*80)
+    print(f"{'ID':<8}{'Nombre':<30}{'Total':<8}{'Primer':<12}{'Último':<12}")
+    print("="*80)
+    for area in resultados:
+        print(f"{area['area']:<8}{area['nombre']:<30}{area['cantidad']:<8}{area['primera_fecha']:<12}{area['ultima_fecha']:<12}")
 
 
 def print_req_6(control):
-    """
-        Función que imprime la solución del Requerimiento 6 en consola
-    """
-    # TODO: Imprimir el resultado del requerimiento 6
-    pass
+    sexo = input("Ingrese el sexo (M/F): ").strip().upper()
+    mes = int(input("Ingrese el mes (1-12): ").strip())
+    numero_areas = int(input("Ingrese la cantidad de áreas a listar: ").strip())
+    if sexo not in ['M', 'F']:
+        print("Sexo inválido. Debe ser M o F.")
+        return
+    if mes < 1 or mes > 12:
+        print("Mes inválido. Debe estar entre 1 y 12.")
+        return
+    resultados = logic.req_6(control, numero_areas, sexo, mes)
+    if resultados:
+        for idx, resultado in enumerate(resultados, 1):
+            print(f"\nResultado {idx}:")
+            print(f"Área: {resultado['Área']}")
+            print(f"Nombre del área: {resultado['Nombre del área']}")
+            print(f"Cantidad de crímenes: {resultado['Cantidad de crímenes']}")
+            print("Crímenes por año:")
+            for cnt, año in resultado['Crímenes por año']:
+                print(f"  Año {año}: {cnt} crímenes")
+    else:
+        print("No se encontraron resultados.")
 
-
+    
 def print_req_7(control):
     """
         Función que imprime la solución del Requerimiento 7 en consola
     """
-    # TODO: Imprimir el resultado del requerimiento 7
-    pass
+    numero_crimenes = input("Ingrese el número de crímenes más comunes: ")
+    sexo = input("Ingrese el sexo de la víctima (M/F): ")
+    edad_min = input("Edad mínima: ")
+    edad_max = input("Edad máxima: ")
+    resultado = logic.req_7(control, numero_crimenes, sexo, edad_min, edad_max)
+    print("\nCrímenes más comunes para víctimas de sexo", sexo, "y rango de edad", edad_min, "-", edad_max)
+    tabla = []
+    for crimen in resultado:
+        fila = [crimen["codigo"], crimen["total"]]
+        edades_ordenadas = sorted(crimen["por_edad"])
+        for edad in edades_ordenadas:
+          fila.append(f"{crimen['por_edad'][edad]} ({edad})")
+        anios_ordenados = sorted(crimen["por_anio"])
+        for anio in anios_ordenados:
+           fila.append(f"{crimen['por_anio'][anio]} ({anio})")
+    tabla.append(fila)
+    max_edades = max(len(crimen["por_edad"]) for crimen in resultado)
+    max_anios = max(len(crimen["por_anio"]) for crimen in resultado)
+    headers = ["Código Crimen", "Total"]
+    for i in range(max_edades):
+        headers.append(f"Edad {i + 1}")
+    for i in range(max_anios):
+        headers.append(f"Año {i + 1}")
+    print(" | ".join(headers))
+    for fila in tabla:
+        print(" | ".join(str(valor) for valor in fila))
 
 
 def print_req_8(control):

@@ -402,3 +402,16 @@ def _height(node):
     if node is None:
         return -1
     return 1 + max(_height(node.get('left')), _height(node.get('right')))
+
+
+def get_sorted(my_rbt):
+    result = []
+    def in_order_traversal(node):
+        if node is None:
+            return
+        in_order_traversal(node.get('left'))
+        result.append(node['value'])
+        in_order_traversal(node.get('right'))
+    
+    in_order_traversal(my_rbt.get('root'))
+    return result
